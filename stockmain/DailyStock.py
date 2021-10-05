@@ -1,5 +1,8 @@
 import null as null
 import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+
 from componydata import compan
 #from database import DB
 from DBConn import sqldata
@@ -19,6 +22,12 @@ def get_stock_data(item_name, code, pagenumber):
     url = 'http://finance.naver.com/item/sise_day.nhn?code={code}'.format(code=code)
     print(url)
 
+    hdr = {
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 9_3_2 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13F69 Safari/601.1',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3', 'Accept-Encoding': 'none',
+        'Accept-Language': 'en-US,en;q=0.8', 'Connection': 'keep-alive'}
+
     df = pd.DataFrame()
 
     if pagenumber == 0:
@@ -26,7 +35,13 @@ def get_stock_data(item_name, code, pagenumber):
 
     for page in range(1, pagenumber):
         pg_url = '{url}&page={page}'.format(url=url, page=page)
-        df = df.append(pd.read_html(pg_url, header=0)[0], ignore_index=True)
+        res = requests.get(pg_url, headers = hdr )
+        soup = BeautifulSoup(res.content, 'html.parser')
+        table = soup.find_all('table')
+
+        ret = pd.read_html(str(table),header=0)[0]
+        df = df.append(ret, ignore_index=True)
+
 
     df = df.dropna()
     df = df.rename(columns={'날짜': 'date', '종가': 'close', '전일비': 'diff', '시가': 'open',
@@ -73,11 +88,12 @@ def update_daily_stock():
         print(sesql)
         ret1 = sa.executes(sesql)
 
+
         if not ret1:
             # Stock data is empty, have to update whole data
-
+            print('Whole data')
             ddf = get_stock_data(comname, code, 20)
-
+            print(ddf)
             try:
                 for i, row in ddf.iterrows():
 
@@ -88,8 +104,10 @@ def update_daily_stock():
                                                                             row['diff'],
                                                                             row['open'], row['high'], row['low'],
                                                                             row['volume'])
+
                         sa.executes(insql)
                     except Exception as e:
+                        print("Daily Stock Data Insert Error")
                         print(e)
 
                 upsql = '''UPDATE corplist SET updateflag = {} WHERE code = {} '''.format('1', code)
@@ -103,6 +121,7 @@ def update_daily_stock():
 
 
         else:
+            print('achaive data')
             print(ret1[0]['date'])
             daybet = utlib.get_datediff(ret1[0]['date'].strftime("%Y-%m-%d"), utlib.gettoday())
             print(daybet)

@@ -20,9 +20,9 @@ class sqldata:
 
     def __init__(self):
         """ Virtually private constructor. """
-        self.host = "221.143.42.85"
-        self.user = "sokoban"
-        self.password = "tnwlEkfkdgo^7"
+        self.host = "3.34.139.77"
+        self.user = ""
+        self.password = ""
         self.db = "STOCKDB"
 
         if sqldata.__instance != None:
@@ -62,7 +62,7 @@ class sqldata:
                     data = self.curs.fetchall()
                     self.conn.commit()
 
-                except:
-                    print('An error occurred:')
+                except Exception as e:
+                    print('Error : ', e.args)
                     print('For the statement:', statement)
         return data
